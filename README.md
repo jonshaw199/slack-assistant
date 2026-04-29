@@ -32,7 +32,7 @@ Under **Socket Mode**: enable it and generate an app-level token (`xapp-...`) wi
 
 Under **OAuth & Permissions**, add these Bot Token Scopes:
 
-`channels:history` `channels:read` `chat:write` `groups:history` `groups:read` `groups:write` `im:history` `mpim:history` `users:read` `users:read.email` `usergroups:read`
+`channels:history` `channels:read` `chat:write` `groups:history` `groups:read` `groups:write` `im:history` `mpim:history` `reactions:write` `users:read` `users:read.email` `usergroups:read`
 
 Under **Event Subscriptions**: enable events and subscribe to bot events:
 
