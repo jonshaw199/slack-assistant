@@ -1,0 +1,35 @@
+# Slack Assistant Configuration
+# ==============================
+
+# Your Slack email address (used to resolve your user ID and channels dynamically)
+email: you@example.com
+
+# Name of the private channel the bot will create/use for alerts
+alert_channel: slack-assistant
+
+# Mode controls how the bot behaves when a relevant message is found:
+#   monitor  - posts an alert with context only, no reply drafted
+#   draft    - drafts a suggested reply for you to Send / Edit / Dismiss via buttons
+#   auto     - sends the drafted reply automatically without approval
+mode: draft
+
+# Set to true temporarily to test with your own messages; false for normal use
+monitor_self: false
+
+# Relevance Prompt
+# ----------------
+# Describe yourself and what you care about in plain English.
+# The bot uses this to decide whether a message is relevant to you,
+# even if you aren't directly mentioned.
+#
+# *** FILL THIS IN BEFORE RUNNING ***
+relevance_prompt: |
+  I'm [Your Name], a [role] at [company] on the [team] team.
+  I own:
+  - [area 1]
+  - [area 2]
+  I care about:
+  - Production errors or alerts related to [your areas]
+  - Questions that need my team's attention even if I'm not tagged
+  - Anything from my teammates that might need a response
+  Ignore: unrelated alerts, HR/admin messages, random chit-chat
