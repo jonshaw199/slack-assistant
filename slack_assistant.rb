@@ -344,7 +344,11 @@ def handle_message_event(event)
   text = [event['text'], attachment_text].compact.reject(&:empty?).join("\n")
 
   puts "[msg] ##{channel_name}: #{text.slice(0, 80)}"
-  puts "  [debug] #{event.inspect}" if CONFIG['debug']
+  if CONFIG['debug']
+    ts_clean = (event['ts'] || '').gsub('.', '')
+    url = "https://slack.com/archives/#{channel_id}/p#{ts_clean}"
+    puts "  [debug] #{url}\n  #{event.inspect}"
+  end
 
   thread_context = event['thread_ts'] ? fetch_thread_context(channel_id, event['thread_ts']) : nil
 
