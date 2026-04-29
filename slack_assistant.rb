@@ -127,6 +127,7 @@ def draft_reply(channel_name, text, thread_context = nil)
     Message: #{full_text}
 
     Draft a short, natural Slack reply on my behalf. Be concise. Just the reply text, no preamble.
+    If an emoji reaction is more appropriate than a text reply (e.g. an FYI or announcement that just needs acknowledgment), respond with only the emoji code like :eyes: or :white_check_mark: — nothing else.
   PROMPT
 
   resp = ANTHROPIC.messages.create(
@@ -140,8 +141,12 @@ rescue => e
   '(could not draft reply)'
 end
 
+def reaction_draft?(draft)
+  draft&.match?(/\A:[a-z0-9_+\-]+:\z/)
+end
+
 def fetch_thread_context(channel_id, thread_ts)
-  replies = SLACK.conversations_replies(channel: channel_id, ts: thread_ts, limit: 10)
+  replies = SLACK.conversations_replies(channel: channel_id, ts: thread_ts, limit: 100)
   replies.messages.map { |m| "<@#{m.user}>: #{m.text}" }.join("\n")
 rescue
   nil
@@ -151,13 +156,16 @@ def post_alert(channel_id:, channel_name:, event:, reason:, draft: nil)
   thread_ts = event['thread_ts'] || event['ts']
   ts_clean = event['ts'].gsub('.', '')
   message_url = "https://slack.com/archives/#{channel_id}/p#{ts_clean}"
+  if event['thread_ts'] && event['thread_ts'] != event['ts']
+    message_url += "?thread_ts=#{event['thread_ts']}&cid=#{channel_id}"
+  end
 
   blocks = [
     {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: ":bell: *Relevant message in ##{channel_name}*  (<#{message_url}|View>)\n> #{event['text']&.slice(0, 400)}"
+        text: ":bell: *Relevant message in ##{channel_name}*  (<#{message_url}|View>)\n*From:* #{event['user'] ? "<@#{event['user']}>" : (event['username'] || 'unknown')}\n> #{event['text']&.slice(0, 400)}"
       }
     },
     {
@@ -167,35 +175,35 @@ def post_alert(channel_id:, channel_name:, event:, reason:, draft: nil)
   ]
 
   if draft
+    is_reaction = reaction_draft?(draft)
     blocks << {
       type: 'section',
-      text: { type: 'mrkdwn', text: "*Suggested reply:*\n#{draft}" }
+      text: { type: 'mrkdwn', text: "*Suggested #{is_reaction ? 'reaction' : 'reply'}:*\n#{draft}" }
     }
-    blocks << {
-      type: 'actions',
-      block_id: 'reply_actions',
-      elements: [
-        {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Send' },
-          style: 'primary',
-          action_id: 'send_reply',
-          value: JSON.generate(channel_id: channel_id, thread_ts: thread_ts, draft: draft)
-        },
-        {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Edit' },
-          action_id: 'edit_reply',
-          value: JSON.generate(channel_id: channel_id, thread_ts: thread_ts, draft: draft)
-        },
-        {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Dismiss' },
-          action_id: 'dismiss_reply',
-          value: 'dismiss'
-        }
-      ]
+    elements = [
+      {
+        type: 'button',
+        text: { type: 'plain_text', text: is_reaction ? "React #{draft}" : 'Send' },
+        style: 'primary',
+        action_id: 'send_reply',
+        value: JSON.generate(channel_id: channel_id, thread_ts: thread_ts, message_ts: event['ts'], draft: draft)
+      }
+    ]
+    unless is_reaction
+      elements << {
+        type: 'button',
+        text: { type: 'plain_text', text: 'Edit' },
+        action_id: 'edit_reply',
+        value: JSON.generate(channel_id: channel_id, thread_ts: thread_ts, draft: draft)
+      }
+    end
+    elements << {
+      type: 'button',
+      text: { type: 'plain_text', text: 'Dismiss' },
+      action_id: 'dismiss_reply',
+      value: 'dismiss'
     }
+    blocks << { type: 'actions', block_id: 'reply_actions', elements: elements }
   end
 
   resp = SLACK.chat_postMessage(channel: ALERT_CHANNEL_ID, blocks: blocks, text: "Relevant: ##{channel_name}", unfurl_links: false)
@@ -213,11 +221,12 @@ def handle_action(payload)
 
   case action_id
   when 'send_reply'
-    SLACK.chat_postMessage(
-      channel: value['channel_id'],
-      thread_ts: value['thread_ts'],
-      text: value['draft']
-    )
+    if reaction_draft?(value['draft'])
+      emoji = value['draft'].gsub(':', '')
+      SLACK.reactions_add(channel: value['channel_id'], name: emoji, timestamp: value['message_ts'] || value['thread_ts'])
+    else
+      SLACK.chat_postMessage(channel: value['channel_id'], thread_ts: value['thread_ts'], text: value['draft'])
+    end
     SLACK.chat_update(
       channel: ALERT_CHANNEL_ID,
       ts: alert_ts,
@@ -327,7 +336,7 @@ def handle_message_event(event)
   channel_id = event['channel']
   return if channel_id == ALERT_CHANNEL_ID
   return unless MONITORED_CHANNELS.key?(channel_id)
-  return if event['subtype']
+  return if event['subtype'] == 'message_deleted'
   return if event['user'] == MY_USER_ID && !CONFIG['monitor_self']
 
   channel_name = MONITORED_CHANNELS[channel_id]
@@ -356,8 +365,12 @@ def handle_message_event(event)
     post_alert(channel_id: channel_id, channel_name: channel_name, event: event, reason: reason, draft: draft)
   when :auto
     draft = draft_reply(channel_name, text, thread_context)
-    thread_ts = event['thread_ts'] || event['ts']
-    SLACK.chat_postMessage(channel: channel_id, thread_ts: thread_ts, text: draft)
+    if reaction_draft?(draft)
+      emoji = draft.gsub(':', '')
+      SLACK.reactions_add(channel: channel_id, name: emoji, timestamp: event['ts'])
+    else
+      SLACK.chat_postMessage(channel: channel_id, thread_ts: event['thread_ts'] || event['ts'], text: draft)
+    end
     puts '  → auto-sent reply'
     post_alert(channel_id: channel_id, channel_name: channel_name, event: event, reason: reason, draft: "(auto-sent) #{draft}")
   end
