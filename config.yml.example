@@ -16,6 +16,9 @@ mode: draft
 # Set to true temporarily to test with your own messages; false for normal use
 monitor_self: false
 
+# Set to true to log raw event data (useful for debugging empty-text messages)
+debug: false
+
 # Relevance Prompt
 # ----------------
 # Describe yourself and what you care about in plain English.
