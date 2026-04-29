@@ -340,7 +340,8 @@ def handle_message_event(event)
   return if event['user'] == MY_USER_ID && !CONFIG['monitor_self']
 
   channel_name = MONITORED_CHANNELS[channel_id]
-  text = event['text'] || ''
+  attachment_text = event['attachments']&.map { |a| [a['title'], a['text'], a['fallback']].compact.join(' ') }&.join("\n")
+  text = [event['text'], attachment_text].compact.reject(&:empty?).join("\n")
 
   puts "[msg] ##{channel_name}: #{text.slice(0, 80)}"
 
