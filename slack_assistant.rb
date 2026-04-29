@@ -347,6 +347,7 @@ def handle_message_event(event)
   if CONFIG['debug']
     ts_clean = (event['ts'] || '').gsub('.', '')
     url = "https://slack.com/archives/#{channel_id}/p#{ts_clean}"
+    url += "?thread_ts=#{event['thread_ts']}&cid=#{channel_id}" if event['thread_ts'] && event['thread_ts'] != event['ts']
     puts "  [debug] #{url}\n  #{event.inspect}"
   end
 
