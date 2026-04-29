@@ -163,10 +163,7 @@ def post_alert(channel_id:, channel_name:, event:, reason:, draft: nil)
   blocks = [
     {
       type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: ":bell: *Relevant message in ##{channel_name}*  (<#{message_url}|View>)\n*From:* #{event['user'] ? "<@#{event['user']}>" : (event['username'] || 'unknown')}\n> #{event['text']&.slice(0, 400)}"
-      }
+      text: { type: 'mrkdwn', text: ":bell: #{message_url}" }
     },
     {
       type: 'context',
@@ -206,7 +203,7 @@ def post_alert(channel_id:, channel_name:, event:, reason:, draft: nil)
     blocks << { type: 'actions', block_id: 'reply_actions', elements: elements }
   end
 
-  resp = SLACK.chat_postMessage(channel: ALERT_CHANNEL_ID, blocks: blocks, text: "Relevant: ##{channel_name}", unfurl_links: false)
+  resp = SLACK.chat_postMessage(channel: ALERT_CHANNEL_ID, blocks: blocks, text: "Relevant: ##{channel_name}", unfurl_links: true)
   PENDING[resp.ts] = { channel_id: channel_id, thread_ts: thread_ts, draft: draft }
 end
 
