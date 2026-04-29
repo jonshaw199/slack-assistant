@@ -373,6 +373,8 @@ def connect_socket
 
   ws.on :open do
     puts '[socket] Connected'
+    # Ping every 30s — forces close detection if connection goes stale after sleep/wake
+    @ping_timer = EM.add_periodic_timer(30) { ws.ping }
   end
 
   ws.on :message do |msg|
@@ -408,6 +410,7 @@ def connect_socket
   end
 
   ws.on :close do |event|
+    @ping_timer&.cancel
     puts "[socket] Disconnected (#{event.code}): #{event.reason}. Reconnecting in 5s..."
     EM.add_timer(5) { connect_socket }
   end
