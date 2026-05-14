@@ -110,6 +110,15 @@ The bot automatically creates and joins a private channel (name set by `alert_ch
 - **Edit** — opens a modal pre-filled with the draft so you can tweak before sending
 - **Dismiss** — removes the alert card
 
+## Running continuously (macOS)
+
+To keep the assistant alive long-term on a Mac:
+
+1. **Enable "Prevent sleeping when plugged in"** — *System Settings → Battery → Options → "Prevent automatic sleeping on power adapter when the display is off"*. This stops idle sleep when on AC power.
+2. **Keep the lid open.** Closing the lid puts the Mac into clamshell sleep regardless of that energy setting, unless an external display (plus keyboard/mouse) is connected. With the lid open and the setting above enabled, the machine stays awake indefinitely while plugged in.
+
+> If you need to run it lid-closed, connect an external display — macOS will treat it as a desktop and respect the "no sleep" setting.
+
 ## Project structure
 
 ```
